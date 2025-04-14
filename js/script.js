@@ -58,36 +58,20 @@ function preparePage() {
   $("#randomiser").click(shufflePlayers);
 }
 
-function setScores(scores) {
-  $.ajax({
-    url: "",
-    type: "POST",
-    dataType: "html",
-    data: {
-      task: "setScores",
-      scores: scores,
-    },
-  });
+function setScores(newScores) {
+  window.setScores(newScores);
+  $("header span").text("очки: " + newScores);
 }
 
 function getScores() {
-  $.ajax({
-    url: "",
-    type: "POST",
-    dataType: "html",
-    data: {
-      task: "getScores",
-    },
-  }).done((data) => {
-    scores += Number(data) || 0;
-    $("header span").text("очки: " + scores);
-  });
+  const currentScores = window.getScores();
+  scores = Number(currentScores) || 0;
+  $("header span").text("очки: " + scores);
 }
 
 function resetScores() {
   scores = 0;
   setScores(scores);
-  $("header span").text("очки: " + scores);
   play.coin();
   $("#information").text("Очки обнулены");
 }

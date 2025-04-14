@@ -1,4 +1,3 @@
-<?php require "./session/scores.php" ?>
 <!DOCTYPE html>
 <html lang='ru'>
 
@@ -25,7 +24,6 @@
 </head>
 
 <body>
-
     <header>
         <h1>Шляпа 👒</h1>
         <span><a style="transition: 0.1s;" href="https://github.com/maxchistt/shlyapa" target="_blank" class="text-secondary">GitHub</a></span>
@@ -89,6 +87,19 @@
         <button id="next" class="container btn btn-primary btn-lg">Следующее слово</button>
     </footer>
 
+    <script>
+        // Session management using localStorage
+        let scores = JSON.parse(localStorage.getItem('scores') || '{}');
+        
+        function getScores() {
+            return scores;
+        }
+        
+        function setScores(newScores) {
+            scores = newScores;
+            localStorage.setItem('scores', JSON.stringify(scores));
+        }
+    </script>
 </body>
 
-</html>
+</html> 

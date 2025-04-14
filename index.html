@@ -55,6 +55,8 @@
             <button class="btn btn-info mb-2 btn-block" id="nullScores">Обнулить очки</button>
         </div>
         <div class="container mb-2">
+            <div class="mb-1">Участники:</div>
+            <textarea id="players" class="form-control mb-2" rows="4" placeholder="Введите имена участников, каждое с новой строки"></textarea>
             <button id="randomiser" class="btn btn-link text-info">Разбить участников на пары</button>
             <div class="ml-4 text-info">
                 <p id="randomiser-res"></p>
@@ -86,20 +88,6 @@
         <button id="play" class="container btn btn-success btn-lg">Ход</button>
         <button id="next" class="container btn btn-primary btn-lg">Следующее слово</button>
     </footer>
-
-    <script>
-        // Session management using localStorage
-        let scores = JSON.parse(localStorage.getItem('scores') || '{}');
-        
-        function getScores() {
-            return scores;
-        }
-        
-        function setScores(newScores) {
-            scores = newScores;
-            localStorage.setItem('scores', JSON.stringify(scores));
-        }
-    </script>
 </body>
 
 </html> 

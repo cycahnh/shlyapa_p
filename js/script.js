@@ -5,67 +5,97 @@ let inGame = false;
 let word = "";
 let lastChanse = false;
 let players = "";
+let isHost = false;
 
-// Game state management using localStorage
-function getGameState() {
-    const state = localStorage.getItem(`game_${gameroom}`) || '{}';
-    return JSON.parse(state);
+const API_URL = 'http://localhost:3000/api';
+
+// Game state management using server
+async function getGameState() {
+    try {
+        const response = await fetch(`${API_URL}/game/${gameroom}`);
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching game state:', error);
+        return { wordList: [], activeGame: [], players: [], scores: 0 };
+    }
 }
 
-function setGameState(state) {
-    localStorage.setItem(`game_${gameroom}`, JSON.stringify(state));
-    // Update last action timestamp
-    localStorage.setItem(`lastAction_${gameroom}`, new Date().toLocaleString());
+async function setGameState(state) {
+    try {
+        await fetch(`${API_URL}/game/${gameroom}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(state)
+        });
+        // Update last action timestamp
+        localStorage.setItem(`lastAction_${gameroom}`, new Date().toLocaleString());
+    } catch (error) {
+        console.error('Error setting game state:', error);
+    }
 }
 
-function getWordList() {
-    const state = getGameState();
+async function getWordList() {
+    const state = await getGameState();
     return state.wordList || [];
 }
 
-function setWordList(words) {
-    const state = getGameState();
+async function setWordList(words) {
+    const state = await getGameState();
     state.wordList = words;
-    setGameState(state);
+    await setGameState(state);
 }
 
-function getActiveGame() {
-    const state = getGameState();
+async function getActiveGame() {
+    const state = await getGameState();
     return state.activeGame || [];
 }
 
-function setActiveGame(words) {
-    const state = getGameState();
+async function setActiveGame(words) {
+    const state = await getGameState();
     state.activeGame = words;
-    setGameState(state);
+    await setGameState(state);
 }
 
-function getPlayersList() {
-    const state = getGameState();
+async function getPlayersList() {
+    const state = await getGameState();
     return state.players || [];
 }
 
-function setPlayersList(players) {
-    const state = getGameState();
+async function setPlayersList(players) {
+    const state = await getGameState();
     state.players = players;
-    setGameState(state);
+    await setGameState(state);
 }
 
-function getScores() {
-    const state = getGameState();
+async function getScores() {
+    const state = await getGameState();
     return state.scores || 0;
 }
 
-function setScores(newScores) {
-    const state = getGameState();
+async function setScores(newScores) {
+    const state = await getGameState();
     state.scores = newScores;
-    setGameState(state);
+    await setGameState(state);
     $("header span").text("очки: " + newScores);
 }
 
-function clearGameState() {
-    localStorage.removeItem(`game_${gameroom}`);
+async function clearGameState() {
+    const emptyState = { wordList: [], activeGame: [], players: [], scores: 0 };
+    await setGameState(emptyState);
     localStorage.removeItem(`lastAction_${gameroom}`);
+}
+
+async function checkRoomExists(room) {
+    try {
+        const response = await fetch(`${API_URL}/room/${room}/exists`);
+        const data = await response.json();
+        return data.exists;
+    } catch (error) {
+        console.error('Error checking room:', error);
+        return false;
+    }
 }
 
 $(document).ready(() => {
@@ -73,16 +103,25 @@ $(document).ready(() => {
     registration(preparePage);
 });
 
-function registration(after) {
+async function registration(after) {
     let res, rej;
     $("#selectname").keyup((e) => {
         e.target.value = filterName(e.target.value);
         getLastAction(e.target);
         if (e.keyCode == 13) $("#selectnamebutton").click();
     });
-    $("#selectnamebutton").click(() => {
-        gameroom = filterName(document.getElementById("selectname").value);
-        $("#setgamename").fadeOut(150, gameroom ? res : rej);
+    $("#selectnamebutton").click(async () => {
+        const room = filterName(document.getElementById("selectname").value);
+        const exists = await checkRoomExists(room);
+        if (exists) {
+            gameroom = room;
+            isHost = false;
+            $("#setgamename").fadeOut(150, res);
+        } else {
+            gameroom = room;
+            isHost = true;
+            $("#setgamename").fadeOut(150, res);
+        }
     });
     (function setRoom() {
         new Promise((resolve, reject) => {
@@ -93,8 +132,8 @@ function registration(after) {
     })();
 }
 
-function preparePage() {
-    $("#current_room").html(`Комната: ${gameroom}`);
+async function preparePage() {
+    $("#current_room").html(`Комната: ${gameroom} ${isHost ? '(Хост)' : ''}`);
     $("#msg").html(
         `<small><small>Откройте меню, чтобы положить слова в шляпу и затем запустить кон. Нажмите "ход", чтобы взять слова из шляпы.</small></small>`
     );
@@ -102,7 +141,7 @@ function preparePage() {
     $("#play").fadeIn(30);
     $("#menuopen").fadeIn(100);
     $(".guestmessage").fadeOut(20);
-    scores = getScores();
+    scores = await getScores();
     $("header span").text("очки: " + scores);
     $("#menuopen").click(() => $("#menu").fadeIn(100, getPlayers));
     $("#menuclose").click(() => $("#menu").fadeOut(150));
@@ -119,42 +158,47 @@ function preparePage() {
     $("#infobutton").click(() => request("info"));
     $("#nullScores").click(resetScores);
     $("#randomiser").click(shufflePlayers);
+
+    // Only show host controls if this is the host
+    if (!isHost) {
+        $("#addwords, #newgame, #clear, #nullScores").hide();
+    }
 }
 
-function resetScores() {
+async function resetScores() {
     scores = 0;
-    setScores(scores);
+    await setScores(scores);
     play.coin();
     $("#information").text("Очки обнулены");
 }
 
-function request(task) {
+async function request(task) {
     let result;
     switch (task) {
         case "play":
-            const activeGame = getActiveGame();
+            const activeGame = await getActiveGame();
             result = activeGame.join("\n");
             break;
         case "next":
             const currentWord = $("#msg").text();
-            let words = getActiveGame();
+            let words = await getActiveGame();
             words = words.filter(word => word !== currentWord);
-            setActiveGame(words);
+            await setActiveGame(words);
             scores++;
-            setScores(scores);
+            await setScores(scores);
             result = words.join("\n");
             break;
         case "newgame":
-            const wordList = getWordList();
+            const wordList = await getWordList();
             if (wordList.length > 0) {
-                setActiveGame([...wordList]);
+                await setActiveGame([...wordList]);
                 result = "Игра начата";
             } else {
                 result = "Ошибка, в игре нет слов";
             }
             break;
         case "clear":
-            clearGameState();
+            await clearGameState();
             result = "Данные успешно очищены";
             break;
         case "addwords":
@@ -163,8 +207,8 @@ function request(task) {
                 .get()
                 .filter(word => word.trim() !== "");
             if (newWords.length > 0) {
-                const currentWords = getWordList();
-                setWordList([...currentWords, ...newWords]);
+                const currentWords = await getWordList();
+                await setWordList([...currentWords, ...newWords]);
                 $(".newword").val("");
                 result = "Данные в файл успешно занесены";
             } else {
@@ -172,14 +216,14 @@ function request(task) {
             }
             break;
         case "info":
-            result = getWordList().join("\n");
+            result = (await getWordList()).join("\n");
             break;
         case "getPlayers":
-            result = getPlayersList().join("\n");
+            result = (await getPlayersList()).join("\n");
             break;
         case "setPlayers":
             const playerList = $("#players").val().split("\n").filter(p => p.trim() !== "");
-            setPlayersList(playerList);
+            await setPlayersList(playerList);
             result = "Данные в файл успешно занесены";
             break;
         default:
